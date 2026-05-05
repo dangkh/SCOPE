@@ -48,8 +48,6 @@ class GLORIA(GeneralRecommender):
         self.dim_latent = 64
         self.mm_adj = None
         self.config = config
-        self.noise_schedule = config['noise_schedule']
-        self.noise_scale = config['noise_scale']
         dataset_path = os.path.abspath(config['data_path'] + config['dataset'])
         
         mm_adj_file = os.path.join(dataset_path, 'mm_adj_{}.pt'.format(self.knn_k))
@@ -222,22 +220,14 @@ class GCN(torch.nn.Module):
         self.dim_feat = features.size(1)
         self.dim_latent = dim_latent
         self.aggr_mode = aggr_mode
-        self.num_layer = num_layer
-        self.has_feature = has_feature
         self.dropout = dropout
         self.device = device
         self.userprofile = user_profile
 
-        if self.has_feature:
-            self.preference = nn.Parameter(nn.init.xavier_normal_(torch.tensor(
-                np.random.randn(num_user, self.dim_latent), dtype=torch.float32, requires_grad=True),
-                gain=1))
-            self.conv_embed_1 = Base_gcn(self.dim_latent, self.dim_latent, aggr=self.aggr_mode)
-        else:
-            self.preference = nn.Parameter(nn.init.xavier_normal_(torch.tensor(
-                np.random.randn(num_user, self.dim_feat), dtype=torch.float32, requires_grad=True),
-                gain=1))
-            self.conv_embed_1 = Base_gcn(self.dim_latent, self.dim_latent, aggr=self.aggr_mode)
+        self.preference = nn.Parameter(nn.init.xavier_normal_(torch.tensor(
+            np.random.randn(num_user, self.dim_feat), dtype=torch.float32, requires_grad=True),
+            gain=1))
+        self.conv_embed_1 = Base_gcn(self.dim_latent, self.dim_latent, aggr=self.aggr_mode)
 
     def forward(self,edge_index,features):
         temp_features = features
