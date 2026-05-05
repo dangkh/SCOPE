@@ -4,7 +4,7 @@ from utils.quick_start import quick_start
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', '-m', type=str, default='VLIF', help='name of models')
+    parser.add_argument('--model', '-m', type=str, default='GLORIA', help='name of models')
     parser.add_argument('--dataset', '-d', type=str, default='book', help='name of datasets')
     parser.add_argument('--gpu_id', '-g', type=int, default=0, help='GPU ID to use')
 

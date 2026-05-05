@@ -17,12 +17,11 @@ from common.abstract_recommender import GeneralRecommender
 from common.loss import BPRLoss, EmbLoss
 from common.init import xavier_uniform_initialization
 from torch.nn import MultiheadAttention
-from .diffusion import  ConditionalDDPM, ConditionalUNet
 from .transformer import TransformerEncoder
 
-class VLIF(GeneralRecommender):
+class GLORIA(GeneralRecommender):
     def __init__(self, config, dataset):
-        super(VLIF, self).__init__(config, dataset)
+        super(GLORIA, self).__init__(config, dataset)
 
         num_user = self.n_users
         num_item = self.n_items
@@ -48,7 +47,6 @@ class VLIF(GeneralRecommender):
         self.t_preference = None
         self.dim_latent = 64
         self.mm_adj = None
-        self.numStep = config['num_diffusion_steps']
         self.config = config
         self.noise_schedule = config['noise_schedule']
         self.noise_scale = config['noise_scale']
@@ -110,15 +108,7 @@ class VLIF(GeneralRecommender):
         self.id_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
                         num_layer=self.num_layer, has_feature=False, dropout=self.drop_rate, dim_latent=64,
                         device=self.device, features=self.id_embedding.weight)
-        if config['fusion'] == 'diffusion':
-            self.unet = ConditionalUNet(
-                emb_dim=self.feat_embed_dim,
-                time_emb_dim=self.feat_embed_dim,
-                hidden_dim= self.feat_embed_dim * 2,
-                text_emb_dim= self.feat_embed_dim)
-            self.diffusion_model = ConditionalDDPM(self.unet, self.numStep, noiseScale=self.noise_scale, schedule=self.noise_schedule)
-            self.countE = 0
-        elif config['fusion'] in ['add', 'pool']:
+        if config['fusion'] in ['add', 'pool']:
             pass
         elif config['fusion'] == 'Multi-Head Attention':
             self.multihead_attn = nn.MultiheadAttention(embed_dim=64, num_heads=4)
@@ -183,17 +173,7 @@ class VLIF(GeneralRecommender):
         user_repT = self.t_rep[:self.num_user]
         user_repI = self.id_rep[:self.num_user]
 
-        if self.config['fusion'] == 'diffusion':
-            self.lossD = self.diffusion_model.train_diff(user_feat, user_repT)
-            generated_cid = self.diffusion_model.sample(
-                cid=user_feat,
-                text_emb=user_repT,
-                infer_step= 5,
-                shape=user_repT.shape,
-                guidance_scale= 0.5  # stronger guidance
-            )
-            userRepT = user_repT + generated_cid
-        elif self.config['fusion'] == 'add':
+        if self.config['fusion'] == 'add':
             userRepT = user_repT + user_feat
         elif self.config['fusion'] == 'pool':
             userRepT = (user_repT + user_feat) / 2
@@ -219,12 +199,6 @@ class VLIF(GeneralRecommender):
     def calculate_loss(self, interaction):
         pos_scores, neg_scores = self.forward(interaction)
         loss_value = -torch.mean(torch.log2(torch.sigmoid(pos_scores - neg_scores)))
-        if self.config['fusion'] == 'diffusion':
-            ceoff = 0.5
-            if self.countE < 100:
-                ceoff = 1.0
-                self.countE += 1
-            return loss_value + ceoff * self.lossD
         return loss_value
 
     def full_sort_predict(self, interaction):
