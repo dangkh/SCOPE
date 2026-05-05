@@ -220,14 +220,21 @@ class GCN(torch.nn.Module):
         self.dim_feat = features.size(1)
         self.dim_latent = dim_latent
         self.aggr_mode = aggr_mode
+        self.has_feature = has_feature
         self.dropout = dropout
         self.device = device
         self.userprofile = user_profile
 
-        self.preference = nn.Parameter(nn.init.xavier_normal_(torch.tensor(
-            np.random.randn(num_user, self.dim_feat), dtype=torch.float32, requires_grad=True),
-            gain=1))
-        self.conv_embed_1 = Base_gcn(self.dim_latent, self.dim_latent, aggr=self.aggr_mode)
+        if self.has_feature:
+            self.preference = nn.Parameter(nn.init.xavier_normal_(torch.tensor(
+                np.random.randn(num_user, self.dim_latent), dtype=torch.float32, requires_grad=True),
+                gain=1))
+            self.conv_embed_1 = Base_gcn(self.dim_latent, self.dim_latent, aggr=self.aggr_mode)
+        else:
+            self.preference = nn.Parameter(nn.init.xavier_normal_(torch.tensor(
+                np.random.randn(num_user, self.dim_feat), dtype=torch.float32, requires_grad=True),
+                gain=1))
+            self.conv_embed_1 = Base_gcn(self.dim_latent, self.dim_latent, aggr=self.aggr_mode)
 
     def forward(self,edge_index,features):
         temp_features = features
