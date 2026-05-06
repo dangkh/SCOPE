@@ -87,7 +87,7 @@ def get_itemDesc(metaDF, merge=True):
 	for idx, row in tqdm(metaDF.iterrows(), total=metaDF.shape[0]):
 		# iid = row['iid']
 		title = row['title']
-		description = row['profile']
+		description = row['description']
 		if merge:
 			itemDesc.append(f"Title: {title}\nDescription: {description}\n\n")
 		else:
