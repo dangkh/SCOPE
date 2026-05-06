@@ -138,7 +138,7 @@ if __name__ == '__main__':
         # load similar user from user_top10user.npy
         top10user_path = f'./data/{args.dataset}/user_top10user.npy'
         if os.path.exists(top10user_path):
-            top10user = np.load(top10user_path, allow_pickle=True).item()
+            top10user = np.load(top10user_path, allow_pickle=True)
     if args.sample:
         sampleName = "sample"
     else:
@@ -164,7 +164,8 @@ if __name__ == '__main__':
         itemInfo += "\n"
         # infomation for global prompt with similar users
         if not args.local:
-            topk_users = top10user[str(uid)]
+            userID = users.index(uid)
+            topk_users = top10user[userID]
             # add information from similar users
             aux_info = "Purchase history of similar users: \n"
             for simU in topk_users:
