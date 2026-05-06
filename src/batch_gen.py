@@ -167,7 +167,9 @@ if __name__ == '__main__':
         # infomation for global prompt with similar users
         if not args.local:
             userID = users.index(uid)
-            topk_users = top10user[userID]
+            # topk_users = top10user[userID]
+            # random 10 user
+            topk_users = random.sample(users, 10)
             # add information from similar users
             aux_info = "Purchase history of similar users: \n"
             for simU in topk_users:
