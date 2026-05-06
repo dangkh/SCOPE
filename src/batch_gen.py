@@ -197,6 +197,8 @@ if __name__ == '__main__':
         summary = generate_summary(model, tokenizer, batchInfo)
         for i, uid in enumerate(batchId):
             user_profiles[str(uid)] = { "summary": summary[i] }
+        if args.sample:
+            break
     
         if (len(user_profiles)) % (batch_size * 10) == 0:
             with open(user_profile_path, 'w', encoding='utf-8') as f:
