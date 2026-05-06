@@ -34,7 +34,6 @@ book:
     Each purchased book will be described in JSON format, with the following attributes:
     {{
           "title": "the name of the book", (if there is no title, I will set this value to "None" or "nan")
-          "description": "a description of book",
     }}
 
     I will provide information about books purchased by target user and users to the target user.

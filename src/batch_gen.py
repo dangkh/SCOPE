@@ -103,12 +103,11 @@ if __name__ == '__main__':
     # =========================
     with open("src/prompts.yaml", "r") as f:
         all_prompts = yaml.safe_load(f)
+    
+    onlyDes = False
     if args.local:
-        sys_prompt = all_prompts[args.dataset]['local']
-    else:
-        sys_prompt = all_prompts[args.dataset]['global']
-
-    itemDesc = get_itemDesc(metaDF)
+        onlyDes = True
+    itemDesc = get_itemDesc(metaDF, onlyDes)
 
     selected_model = "unsloth/gemma-3-4b-it-unsloth-bnb-4bit"
 
@@ -131,9 +130,12 @@ if __name__ == '__main__':
     user_profiles = {}
     checkarray = []
     users = list(user_interactions.keys())
+
     if args.local:
+        sys_prompt = all_prompts[args.dataset]['local']
         promptName = "localPrompt"
     else:        
+        sys_prompt = all_prompts[args.dataset]['global']
         promptName = "globalPrompt"
         # load similar user from user_top10user.npy
         top10user_path = f'./data/{args.dataset}/user_top10user.npy'
