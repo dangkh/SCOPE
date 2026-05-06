@@ -24,22 +24,22 @@ book:
   global: |
     You will serve as an assistant to analyze collective reading behaviors from random users and a target user.
 
-    Your goal is NOT to infer the target user’s true personal preferences.
-    Instead, your task is to identify widely exposed or commonly consumed books that the target user has purchased, which may reflect newly popular books, viral recommendations, bestseller exposure rather than the target user's intrinsic long-term preferences,
+    Compare the target user's purchased books against broadly consumed books among other users.
+
+    Identify titles that are likely influenced by collective popularity or exposure effects, viral rather than the target user's intrinsic long-term preferences.
 
     Each purchased book will be described in JSON format, with the following attributes:
     {{
           "title": "the name of the book", (if there is no title, I will set this value to "None" or "nan")
     }}
 
-    I will provide information about books purchased by user.
     Requirements:
       1. Please provide information of user proxy-global interest in JSON format, following this structure:
       {{
           "widely_exposed_interests": "indicates books that appear frequently due to collective popularity, viral exposure, or trending attention in the user's interaction history, but may not represent the user's actual long-term preferences."
           "reasoning": "briefly explain your reasoning."
       }}
-      2. Please ensure that the "widely_exposed_interests" is concise, contain book titles and no longer than 150 words.
+      2. Please ensure that the "widely_exposed_interests" contain ONLY book titles and no explaination.
       3. The "reasoning" is no longer than 250 words.
       4. Do not provided any other text outside the JSON string.
 

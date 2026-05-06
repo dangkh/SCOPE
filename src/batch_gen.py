@@ -171,11 +171,11 @@ if __name__ == '__main__':
             # random 10 user
             topk_users = random.sample(users, 10)
             # add information from similar users
-            aux_info = "Purchase history of similar users: \n"
+            aux_info = "Purchase history of random users: \n"
             for simU in topk_users:
                 user_items = user_interactions[simU]
                 random.shuffle(user_items)
-                itemInfo += f"Similar user {simU} has purchased: \n"
+                itemInfo += f"user {simU} has purchased: \n"
                 for item in user_items:
                     itemInfo += itemDesc[item]
                 itemInfo += "\n"
