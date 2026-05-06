@@ -19,9 +19,9 @@ from common.init import xavier_uniform_initialization
 from torch.nn import MultiheadAttention
 from .transformer import TransformerEncoder
 
-class GLORIA(GeneralRecommender):
+class Pretrain(GeneralRecommender):
     def __init__(self, config, dataset):
-        super(GLORIA, self).__init__(config, dataset)
+        super(Pretrain, self).__init__(config, dataset)
 
         num_user = self.n_users
         num_item = self.n_items
@@ -50,11 +50,7 @@ class GLORIA(GeneralRecommender):
         self.config = config
         dataset_path = os.path.abspath(config['data_path'] + config['dataset'])
         
-        mm_adj_file = os.path.join(dataset_path, 'mm_adj_{}.pt'.format(self.knn_k))
-
         self.id_embedding = nn.Embedding(num_item, self.feat_embed_dim)
-        self.mlp_item = nn.Linear(self.t_feat.shape[-1], self.dim_latent, bias=False)
-        self.mlp_user = nn.Linear(self.user_feat.shape[-1], self.dim_latent, bias=False)
 
         indices, text_adj = self.get_knn_adj_mat(self.t_feat)
         self.mm_adj = text_adj
@@ -100,21 +96,9 @@ class GLORIA(GeneralRecommender):
         self.edge_index_dropt = torch.cat((self.edge_index_dropt, self.edge_index_dropt[[1, 0]]), dim=1)
 
         self.t_drop_ze = torch.zeros(len(self.dropt_node_idx), self.t_feat.size(1)).to(self.device)
-        self.t_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
-                        num_layer=self.num_layer, has_feature=True, dropout=self.drop_rate, dim_latent=64,
-                        device=self.device, features=self.t_feat, user_profile=self.user_feat)
         self.id_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
                         num_layer=self.num_layer, has_feature=False, dropout=self.drop_rate, dim_latent=64,
                         device=self.device, features=self.id_embedding.weight)
-        if config['fusion'] in ['add', 'pool']:
-            pass
-        elif config['fusion'] == 'Multi-Head Attention':
-            self.multihead_attn = nn.MultiheadAttention(embed_dim=64, num_heads=4)
-        elif config['fusion'] == 'Transformer':
-            self.transformer = TransformerEncoder(64, num_heads= 4, layers=2)
-        else:
-            raise NotImplementedError
-        
 
 
     def get_knn_adj_mat(self, mm_embeddings):
@@ -156,37 +140,9 @@ class GLORIA(GeneralRecommender):
         pos_item_nodes += self.n_users
         neg_item_nodes += self.n_users
 
-        item_feat = self.mlp_item(self.t_feat)
-        user_feat = F.normalize(self.mlp_user(self.user_feat))
-        
-        self.t_rep, self.t_preference = self.t_gcn(self.edge_index, item_feat)
-        self.id_rep, self.id_preference = self.id_gcn(self.edge_index, self.id_embedding.weight)
+        self.result_embed, self.id_preference = self.id_gcn(self.edge_index, self.id_embedding.weight)
+        self.user_rep = self.result_embed[:self.num_user]
 
-        item_repT = self.t_rep[self.num_user:]
-        item_repI = self.id_rep[self.num_user:]
-
-        item_rep = torch.cat((item_repT, item_repI), dim=1)
-        item_rep = self.item_item(item_rep)
-
-        user_repT = self.t_rep[:self.num_user]
-        user_repI = self.id_rep[:self.num_user]
-
-        if self.config['fusion'] == 'add':
-            userRepT = user_repT + user_feat
-        elif self.config['fusion'] == 'pool':
-            userRepT = (user_repT + user_feat) / 2
-        elif self.config['fusion'] == 'Multi-Head Attention':
-            output, _ = self.multihead_attn(user_repT.unsqueeze(0), user_feat.unsqueeze(0), user_feat.unsqueeze(0))
-            output = output.squeeze(0)
-            userRepT = output + user_repT
-        elif self.config['fusion'] == 'Transformer':
-            output = self.transformer(user_repT.unsqueeze(0), user_feat.unsqueeze(0), user_feat.unsqueeze(0)).squeeze(0)
-            userRepT = output + user_repT
-        else:
-            raise NotImplementedError
-        user_rep = torch.cat((userRepT, user_repI), dim=1)
-
-        self.result_embed = torch.cat((user_rep, item_rep), dim=0)
         user_tensor = self.result_embed[user_nodes]
         pos_item_tensor = self.result_embed[pos_item_nodes]
         neg_item_tensor = self.result_embed[neg_item_nodes]
