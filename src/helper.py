@@ -88,11 +88,11 @@ def get_itemDesc(metaDF, colname = "profile", merge=True):
 		# iid = row['iid']
 		title = row['title']
 		if colname is not None:
-			description = f"Description: {row[colname]}"
+			description = f"Description: {row[colname]} \n\n"
 		else:
 			description = ""
 		if merge:
-			itemDesc.append(f"Title: {title}\n {description}\n\n")
+			itemDesc.append(f"Title: {title}\n {description}")
 		else:
 			itemDesc.append((title, description))
 	return itemDesc

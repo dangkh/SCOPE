@@ -104,12 +104,10 @@ if __name__ == '__main__':
     with open("src/prompts.yaml", "r") as f:
         all_prompts = yaml.safe_load(f)
     
-    onlyDes = False
     colName = None
     if args.local:
-        onlyDes = True
         colName = "profile"
-    itemDesc = get_itemDesc(metaDF, colname=colName, merge=onlyDes)
+    itemDesc = get_itemDesc(metaDF, colname=colName)
 
     selected_model = "unsloth/gemma-3-4b-it-unsloth-bnb-4bit"
 

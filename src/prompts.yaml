@@ -25,11 +25,7 @@ book:
     You will serve as an assistant to analyze collective reading behaviors from users similar to a target user.
 
     Your goal is NOT to infer the target user’s true personal preferences.
-    Instead, your task is to identify:
-
-    1. widely exposed or commonly consumed book topics,
-    2. socially popular or trending reading,
-    3. recurring interests among users that rather reflect collective exposure than intrinsic long-term taste, and
+    Instead, your task is to identify widely exposed or commonly consumed books that the target user has purchased, which may reflect newly popular books, viral recommendations, bestseller exposure rather than the target user's intrinsic long-term preferences,
 
     Each purchased book will be described in JSON format, with the following attributes:
     {{
@@ -43,7 +39,7 @@ book:
           "widely_exposed_interests": "may reflect newly popular books, viral recommendations, bestseller exposure rather than the target user's intrinsic long-term preferences.",
           "reasoning": "briefly explain your reasoning for the summarization"
       }}
-      2. Please ensure that the "widely_exposed_interests" is no longer than 150 words.
+      2. Please ensure that the "widely_exposed_interests" is concise, contain book titles and no longer than 150 words.
       3. The "reasoning" is no longer than 250 words.
       4. Do not provided any other text outside the JSON string.
 
