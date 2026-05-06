@@ -139,8 +139,11 @@ if __name__ == '__main__':
         top10user_path = f'./data/{args.dataset}/user_top10user.npy'
         if os.path.exists(top10user_path):
             top10user = np.load(top10user_path, allow_pickle=True).item()
-
-    user_profile_path = f'./data/{args.dataset}/{promptName}_{args.LLM}_usr_prf.json'
+    if args.sample:
+        sampleName = "sample"
+    else:
+        sampleName = ""
+    user_profile_path = f'./data/{args.dataset}/{sampleName}_{promptName}_{args.LLM}_usr_prf.json'
     if os.path.exists(user_profile_path):
         with open(user_profile_path, 'r', encoding='utf-8') as f:
             user_profiles = json.load(f)
@@ -194,20 +197,12 @@ if __name__ == '__main__':
         summary = generate_summary(model, tokenizer, batchInfo)
         for i, uid in enumerate(batchId):
             user_profiles[str(uid)] = { "summary": summary[i] }
-        if args.sample:
-            print(f"Batch {batchId} summaries:")
-            for i, uid in enumerate(batchId):
-                print(f"User {uid}: {summary[i]}")
-            break
     
         if (len(user_profiles)) % (batch_size * 10) == 0:
             with open(user_profile_path, 'w', encoding='utf-8') as f:
                 json.dump(user_profiles, f, ensure_ascii=False, indent=4)
-    if args.sample:
-        print("Sample generation done, not saving full profiles.")
-    else:
-        with open(user_profile_path, 'w', encoding='utf-8') as f:
-            json.dump(user_profiles, f, ensure_ascii=False, indent=4)
+    with open(user_profile_path, 'w', encoding='utf-8') as f:
+        json.dump(user_profiles, f, ensure_ascii=False, indent=4)
     
     # stat for candidate
     # print(np.mean(checkarray), np.min(checkarray), np.max(checkarray))
