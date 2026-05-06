@@ -82,12 +82,12 @@ def getUser_Interaction(interDF):
 		user_interactions[uid].append(int(iid))
 	return user_interactions
 
-def get_itemDesc(metaDF, merge=True):
+def get_itemDesc(metaDF, colname = "profile", merge=True):
 	itemDesc = []
 	for idx, row in tqdm(metaDF.iterrows(), total=metaDF.shape[0]):
 		# iid = row['iid']
 		title = row['title']
-		description = row['description']
+		description = row[colname]
 		if merge:
 			itemDesc.append(f"Title: {title}\nDescription: {description}\n\n")
 		else:

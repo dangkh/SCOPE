@@ -105,9 +105,11 @@ if __name__ == '__main__':
         all_prompts = yaml.safe_load(f)
     
     onlyDes = False
+    colName = "description"
     if args.local:
         onlyDes = True
-    itemDesc = get_itemDesc(metaDF, onlyDes)
+        colName = "profile"
+    itemDesc = get_itemDesc(metaDF, colName=colName, merge=onlyDes)
 
     selected_model = "unsloth/gemma-3-4b-it-unsloth-bnb-4bit"
 
