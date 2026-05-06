@@ -73,6 +73,7 @@ if __name__ == '__main__':
     parser.add_argument('--LLM', type=str, default='gema', help='name of LLM to use: Llama or Gemma, Qwen')
     parser.add_argument('--sample', type=bool, default=True, help='whether to sample or full generation')
     parser.add_argument('--batch_size', type=int, default=8, help='batch size for LLM inference')
+    parser.add_argument('--local', type=bool, default=True, help='whether to use local or global prompt')
     args, _ = parser.parse_known_args()
     print(args)
 
@@ -102,8 +103,10 @@ if __name__ == '__main__':
     # =========================
     with open("src/prompts.yaml", "r") as f:
         all_prompts = yaml.safe_load(f)
-    sys_prompt = all_prompts[args.dataset]['local']
-
+    if args.local:
+        sys_prompt = all_prompts[args.dataset]['local']
+    else:
+        sys_prompt = all_prompts[args.dataset]['global']
 
     itemDesc = get_itemDesc(metaDF)
 
@@ -128,8 +131,16 @@ if __name__ == '__main__':
     user_profiles = {}
     checkarray = []
     users = list(user_interactions.keys())
+    if args.local:
+        promptName = "localPrompt"
+    else:        
+        promptName = "globalPrompt"
+        # load similar user from user_top10user.npy
+        top10user_path = f'./data/{args.dataset}/user_top10user.npy'
+        if os.path.exists(top10user_path):
+            top10user = np.load(top10user_path, allow_pickle=True).item()
 
-    user_profile_path = f'./data/{args.dataset}/batch_{args.LLM}_usr_prf.json'
+    user_profile_path = f'./data/{args.dataset}/{promptName}_{args.LLM}_usr_prf.json'
     if os.path.exists(user_profile_path):
         with open(user_profile_path, 'r', encoding='utf-8') as f:
             user_profiles = json.load(f)
@@ -143,9 +154,26 @@ if __name__ == '__main__':
             continue
         u_items = user_interactions[uid]
         random.shuffle(u_items)
+        # local prompt with only user
         itemInfo = "The user has purchased: \n"
         for item in u_items[-10:]:
             itemInfo += itemDesc[item]
+        itemInfo += "\n"
+        # infomation for global prompt with similar users
+        if not args.local:
+            topk_users = top10user[str(uid)]
+            # add information from similar users
+            aux_info = "Purchase history of similar users: \n"
+            for simU in topk_users:
+                user_items = user_interactions[simU]
+                random.shuffle(user_items)
+                itemInfo += f"Similar user {simU} has purchased: \n"
+                for item in user_items:
+                    itemInfo += itemDesc[item]
+                itemInfo += "\n"
+            aux_info += itemInfo
+            itemInfo += aux_info
+
 
         messages = get_message(sys_prompt, itemInfo)
         q_message.append(messages)
