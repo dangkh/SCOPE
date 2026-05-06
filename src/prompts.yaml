@@ -36,8 +36,8 @@ book:
     Requirements:
       1. Please provide information of user proxy-global interest in JSON format, following this structure:
       {{
-          "widely_exposed_interests": "may reflect newly popular books, viral recommendations, bestseller exposure rather than the target user's intrinsic long-term preferences.",
-          "reasoning": "briefly explain your reasoning for the summarization"
+          "widely_exposed_interests": "indicates books that appear frequently due to collective popularity, viral exposure, or trending attention in the user's interaction history, but may not represent the user's actual long-term preferences."
+          "reasoning": "briefly explain your reasoning."
       }}
       2. Please ensure that the "widely_exposed_interests" is concise, contain book titles and no longer than 150 words.
       3. The "reasoning" is no longer than 250 words.
