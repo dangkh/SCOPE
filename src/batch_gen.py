@@ -70,13 +70,9 @@ def generate_summary(model, tokenizer, batchInfo):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', '-d', type=str, default='book', help='name of datasets')
-    parser.add_argument('--tuning',  '-t', type=bool, default=True, help='load tuned model or pretrain')
     parser.add_argument('--LLM', type=str, default='gema', help='name of LLM to use: Llama or Gemma, Qwen')
-    parser.add_argument("--shard", type=int, default=0)
-    parser.add_argument("--num_shards", type=int, default=1)
-    parser.add_argument("--out", type=str, default="sample_user_profile.json")
-    parser.add_argument('--prompt_profile', '-pp', type=bool, default=True, help='ablation: item profile in prompt or not')
-    parser.add_argument('--prompt_candidate', '-pc', type=bool, default=True, help='use candidate prompt or not')
+    parser.add_argument('--sample', type=bool, default=True, help='whether to sample or full generation')
+    parser.add_argument('--batch_size', type=int, default=8, help='batch size for LLM inference')
     args, _ = parser.parse_known_args()
     print(args)
 
@@ -106,39 +102,12 @@ if __name__ == '__main__':
     # =========================
     with open("src/prompts.yaml", "r") as f:
         all_prompts = yaml.safe_load(f)
-    sys_prompt = all_prompts[args.dataset]['user']
+    sys_prompt = all_prompts[args.dataset]['local']
 
 
     itemDesc = get_itemDesc(metaDF)
 
-    # for each item, find top-k similar items
-    top_k = 10
-    item_item_path = f'./data/{args.dataset}/item_top{top_k}item.npy'
-    if os.path.exists(item_item_path):
-        print(f"{item_item_path} exists, skip building item-item knn.")
-        item_kitem = np.load(item_item_path)
-    else:
-        raise ValueError(f"{item_item_path} does not exist, please run preprocess.py to build it.")
-
-
-    fourbit_models = [
-        "unsloth/Qwen3-4B-Instruct-2507-unsloth-bnb-4bit", # Qwen 14B 2x faster
-        "unsloth/Qwen3-4B-Thinking-2507-unsloth-bnb-4bit",
-        "unsloth/Qwen3-8B-unsloth-bnb-4bit",
-        "unsloth/Qwen3-14B-unsloth-bnb-4bit",
-        "unsloth/Qwen3-32B-unsloth-bnb-4bit",
-
-        # 4bit dynamic quants for superior accuracy and low memory use
-        "unsloth/gemma-3-12b-it-unsloth-bnb-4bit",
-        "unsloth/Phi-4",
-        "unsloth/Llama-3.1-8B",
-        "unsloth/Llama-3.2-3B",
-        "unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit" # [NEW] We support TTS models!
-    ] # More models at https://huggingface.co/unsloth
-
     selected_model = "unsloth/gemma-3-4b-it-unsloth-bnb-4bit"
-    if args.tuning:
-        selected_model = f"gemma3_4b_it_model_book_candidate_True_profile_True"
 
     print(selected_model)
     
@@ -158,20 +127,16 @@ if __name__ == '__main__':
     FastLanguageModel.for_inference(model)
     user_profiles = {}
     checkarray = []
-    listUser = list(user_interactions.keys())
-    users = listUser[args.shard::args.num_shards]
+    users = list(user_interactions.keys())
 
-    if args.tuning:
-        user_profile_path = f'./data/{args.dataset}/batch_tuning{args.LLM}_candidate_{args.prompt_candidate}_profile_{args.prompt_profile}.json'
-    else:
-        user_profile_path = f'./data/{args.dataset}/batch_{args.LLM}_usr_prf_{args.shard}_candidate_{args.prompt_candidate}_profile_{args.prompt_profile}.json'
+    user_profile_path = f'./data/{args.dataset}/batch_{args.LLM}_usr_prf.json'
     if os.path.exists(user_profile_path):
         with open(user_profile_path, 'r', encoding='utf-8') as f:
             user_profiles = json.load(f)
         print(f"Loaded existing user profiles from {user_profile_path}, current size: {len(user_profiles)}")
     q_message = []
     q_id = []
-    batch_size = 8
+    batch_size = args.batch_size
     batch_messages = []
     for uid in tqdm(users):
         if str(uid) in user_profiles:
@@ -196,29 +161,25 @@ if __name__ == '__main__':
         q_message = []
         q_id = []
         
-    # save batch_messages[0] to file text for debugging
-    # with open(f'./data/{args.dataset}/batch_messages_{args.shard}_candidate_{args.prompt_candidate}_profile_{args.prompt_profile}.txt', 'w', encoding='utf-8') as f:
-    #     for uid, messages in zip(batch_messages[0][0], batch_messages[0][1]):
-    #         print(uid, messages)
-    #         stop
-            # f.write(f"User ID: {uid}\n")
-            # for msg in messages:
-            #     f.write(f"{msg['role']}: {msg['content']}\n")
-            # f.write("\n====================\n\n")
-    
-
     
     for batchId, batchInfo in tqdm(batch_messages):
         summary = generate_summary(model, tokenizer, batchInfo)
         for i, uid in enumerate(batchId):
             user_profiles[str(uid)] = { "summary": summary[i] }
-
+        if args.sample:
+            print(f"Batch {batchId} summaries:")
+            for i, uid in enumerate(batchId):
+                print(f"User {uid}: {summary[i]}")
+            break
+    
         if (len(user_profiles)) % (batch_size * 10) == 0:
             with open(user_profile_path, 'w', encoding='utf-8') as f:
                 json.dump(user_profiles, f, ensure_ascii=False, indent=4)
-
-    with open(user_profile_path, 'w', encoding='utf-8') as f:
-        json.dump(user_profiles, f, ensure_ascii=False, indent=4)
+    if args.sample:
+        print("Sample generation done, not saving full profiles.")
+    else:
+        with open(user_profile_path, 'w', encoding='utf-8') as f:
+            json.dump(user_profiles, f, ensure_ascii=False, indent=4)
     
     # stat for candidate
     # print(np.mean(checkarray), np.min(checkarray), np.max(checkarray))
