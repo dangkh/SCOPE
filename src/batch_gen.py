@@ -73,7 +73,7 @@ if __name__ == '__main__':
     parser.add_argument('--LLM', type=str, default='gema', help='name of LLM to use: Llama or Gemma, Qwen')
     parser.add_argument('--sample', type=bool, default=True, help='whether to sample or full generation')
     parser.add_argument('--batch_size', type=int, default=8, help='batch size for LLM inference')
-    parser.add_argument('--local', type=bool, default=True, help='whether to use local or global prompt')
+    parser.add_argument('--local', type=bool, default=False, help='whether to use local or global prompt')
     args, _ = parser.parse_known_args()
     print(args)
 
@@ -105,11 +105,11 @@ if __name__ == '__main__':
         all_prompts = yaml.safe_load(f)
     
     onlyDes = False
-    colName = "description"
+    colName = None
     if args.local:
         onlyDes = True
         colName = "profile"
-    itemDesc = get_itemDesc(metaDF, colName=colName, merge=onlyDes)
+    itemDesc = get_itemDesc(metaDF, colname=colName, merge=onlyDes)
 
     selected_model = "unsloth/gemma-3-4b-it-unsloth-bnb-4bit"
 
