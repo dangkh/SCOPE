@@ -236,7 +236,7 @@ class Trainer(AbstractTrainer):
                     self.best_test_upon_valid = test_result
                     # save self.model.user_rep to config['data_path'] + dataset .npy file
                     if self.config['model'] == 'Pretrain':
-                        savepath = os.path.join(self.config['data_path'], self.config['dataset'], "_user_rep.npy")
+                        savepath = os.path.join(self.config['data_path'], self.config['dataset'], "user_rep.npy")
                         np.save(savepath, self.model.user_rep.cpu().detach().numpy())
 
                 if stop_flag:
