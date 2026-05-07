@@ -93,13 +93,6 @@ class GLORIA(GeneralRecommender):
             mask_dropt.extend(temp_false) if idx in self.dropt_node_idx else mask_dropt.extend(temp_true)
 
         edge_index = edge_index[np.lexsort(edge_index.T[1, None])]
-        edge_index_dropt = edge_index[mask_dropt]
-
-        self.edge_index_dropt = torch.tensor(edge_index_dropt).t().contiguous().to(self.device)
-
-        self.edge_index_dropt = torch.cat((self.edge_index_dropt, self.edge_index_dropt[[1, 0]]), dim=1)
-
-        self.t_drop_ze = torch.zeros(len(self.dropt_node_idx), self.t_feat.size(1)).to(self.device)
         self.t_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
                         num_layer=self.num_layer, has_feature=True, dropout=self.drop_rate, dim_latent=64,
                         device=self.device, features=self.t_feat, user_profile=self.user_feat)
