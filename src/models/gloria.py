@@ -158,10 +158,10 @@ class GLORIA(GeneralRecommender):
         pos_item_nodes += self.n_users
         neg_item_nodes += self.n_users
 
-        item_feat = self.mlp_item(self.t_feat)
-        user_feat = F.normalize(self.mlp_user(self.user_feat))
+        # item_feat = self.mlp_item(self.t_feat)
+        # user_feat = F.normalize(self.mlp_user(self.user_feat))
         
-        self.idl_rep, self.t_preference = self.idl_gcn(self.edge_index, item_feat)
+        self.idl_rep, self.t_preference = self.idl_gcn(self.edge_index, self.id_embedding_low.weight)
         self.idh_rep, self.id_preference = self.idh_gcn(self.edge_index, self.id_embedding_high.weight)
 
         item_repl = self.idl_rep[self.num_user:]
