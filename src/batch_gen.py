@@ -131,8 +131,6 @@ if __name__ == '__main__':
     ] # More models at https://huggingface.co/unsloth
 
     selected_model = "unsloth/gemma-3-4b-it-unsloth-bnb-4bit"
-    if args.tuning:
-        selected_model = f"gemma3_4b_it_model_book_candidate_True_profile_True"
 
     print(selected_model)
     
@@ -155,7 +153,7 @@ if __name__ == '__main__':
     listUser = list(user_interactions.keys())
     users = listUser
 
-    user_profile_path = f'./data/{args.dataset}/batch_{args.LLM}_usr_prf_profile_{args.prompt_profile}.json'
+    user_profile_path = f'./data/{args.dataset}/batch_{args.LLM}_usr_prf.json'
     if os.path.exists(user_profile_path):
         with open(user_profile_path, 'r', encoding='utf-8') as f:
             user_profiles = json.load(f)
