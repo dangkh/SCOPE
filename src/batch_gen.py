@@ -101,10 +101,21 @@ if __name__ == '__main__':
             if item not in item_degree:
                 item_degree[item] = 0
             item_degree[item] += 1
-    #  get all items within top 10% highest degree
-    degree_threshold = np.percentile(list(item_degree.values()), 90)
-    popular_items = set([item for item, degree in item_degree.items() if degree >= degree_threshold])
+    # sort item theo degree giảm dần
+    sorted_items = sorted(
+        item_degree.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
 
+    # số lượng top item
+    high_ratio = 0.10
+    num_high = int(len(sorted_items) * high_ratio)
+
+    # lấy top 10%
+    popular_items = set([
+        item for item, degree in sorted_items[:num_high]
+    ])
     # =========================
     # Profiling for user
     # =========================
@@ -178,6 +189,7 @@ if __name__ == '__main__':
         u_is = user_interactions[uid]
         # u_items contain only items not appearing in popular_items
         u_items = [item for item in u_is if item not in popular_items]
+        print(len(u_is), len(u_items))
         random.shuffle(u_items)
         itemInfo = "The user has purchased: \n"
         for item in u_items:
@@ -190,6 +202,8 @@ if __name__ == '__main__':
             batch_messages.append([q_id, q_message])
             q_message = []
             q_id = []
+        if len(batch_messages) >= 10: # mỗi 10 batch thì lưu một lần
+            break
     
 
     if len(q_message) > 0:
