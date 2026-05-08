@@ -63,36 +63,13 @@ class GLORIA(GeneralRecommender):
         train_interactions = dataset.inter_matrix(form='coo').astype(np.float32)
         edge_index = self.pack_edge_index(train_interactions)
 
-
         self.edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous().to(self.device)
         self.edge_index = torch.cat((self.edge_index, self.edge_index[[1, 0]]), dim=1)
-
-        self.item_index = torch.zeros([self.num_item], dtype=torch.long)
-        index = []
-        for i in range(self.num_item):
-            self.item_index[i] = i
-            index.append(i)
         self.drop_percent = self.drop_rate
-        self.single_percent = 1
 
-        drop_item = torch.tensor(
+        _ = torch.tensor(
             np.random.choice(self.item_index, int(self.num_item * self.drop_percent), replace=False))
-        drop_item_single = drop_item[:int(self.single_percent * len(drop_item))]
 
-        self.dropt_node_idx_single = drop_item_single[int(len(drop_item_single) * 2 / 3):]
-
-        self.dropt_node_idx = self.dropt_node_idx_single
-
-        mask_cnt = torch.zeros(self.num_item, dtype=int).tolist()
-        for edge in edge_index:
-            mask_cnt[edge[1] - self.num_user] += 1
-        mask_dropt = []
-        for idx, num in enumerate(mask_cnt):
-            temp_false = [False] * num
-            temp_true = [True] * num
-            mask_dropt.extend(temp_false) if idx in self.dropt_node_idx else mask_dropt.extend(temp_true)
-
-        edge_index = edge_index[np.lexsort(edge_index.T[1, None])]
         self.t_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
                         num_layer=self.num_layer, has_feature=True, dropout=self.drop_rate, dim_latent=64,
                         device=self.device, features=self.t_feat, user_profile=self.user_feat)
