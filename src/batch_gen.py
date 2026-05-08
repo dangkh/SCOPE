@@ -94,6 +94,16 @@ if __name__ == '__main__':
     # =========================
 
     user_interactions = getUser_Interaction(interDF)
+    # from user_interaction, get item degree
+    item_degree = {}
+    for u, items in user_interactions.items():
+        for item in items:
+            if item not in item_degree:
+                item_degree[item] = 0
+            item_degree[item] += 1
+    #  get all items within top 10% highest degree
+    degree_threshold = np.percentile(list(item_degree.values()), 90)
+    popular_items = set([item for item, degree in item_degree.items() if degree >= degree_threshold])
 
     # =========================
     # Profiling for user
@@ -165,10 +175,12 @@ if __name__ == '__main__':
     for uid in tqdm(users):
         if str(uid) in user_profiles:
             continue
-        u_items = user_interactions[uid]
+        u_is = user_interactions[uid]
+        # u_items contain only items not appearing in popular_items
+        u_items = [item for item in u_is if item not in popular_items]
         random.shuffle(u_items)
         itemInfo = "The user has purchased: \n"
-        for item in u_items[-10:]:
+        for item in u_items:
             itemInfo += itemDesc[item]
 
         messages = get_message(sys_prompt, itemInfo)
