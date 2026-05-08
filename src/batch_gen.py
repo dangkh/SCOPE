@@ -202,8 +202,6 @@ if __name__ == '__main__':
             batch_messages.append([q_id, q_message])
             q_message = []
             q_id = []
-        if len(batch_messages) >= 10: # mỗi 10 batch thì lưu một lần
-            break
     
 
     if len(q_message) > 0:
