@@ -1,5 +1,5 @@
 book:
-  local: |
+  user: |
     You will serve as an assistant to help me determine which types of books a specific user is likely to enjoy.
     I will provide you with information about books that the user has purchased.
     Here are the instructions:
@@ -21,38 +21,6 @@ book:
       2. Please ensure that the "summarization" is no longer than 150 words.
       3. The "reasoning" has no word limits.
       4. Do not provided any other text outside the JSON string.
-  global: |
-    You will serve as an assistant to analyze collective reading behaviors from users similar to a target user.
-
-    Your goal is NOT to infer the target user’s true personal preferences.
-    Instead, your task is to identify:
-
-    1. widely exposed or commonly consumed book topics,
-    2. socially popular or trending reading patterns,
-    3. recurring themes among similar users,
-    4. and interests that may reflect collective exposure rather than intrinsic long-term taste.
-
-    These signals will be used as a proxy-global representation for recommendation systems.
-
-    Each purchased book will be described in JSON format, with the following attributes:
-    {{
-          "title": "the name of the book", (if there is no title, I will set this value to "None" or "nan")
-          "description": "a description of what types of users will like this book",
-    }}
-
-    I will provide information about books purchased by target user and users similar to the target user.
-    Requirements:
-      1. Please provide information of user proxy-global interest in JSON format, following this structure:
-      {{
-          "proxy_global_summary": "A concise summary of the major collective reading patterns and broadly exposed topics among similar users.",
-          "widely_exposed_interests": "topic appears widely exposed among similar users and whether it may reflect collective popularity rather than stable personal taste",
-          "reasoning": "briefly explain your reasoning for the summarization"
-      }}
-      2. Please ensure that the "proxy_global_summary" is no longer than 150 words.
-      3. "widely_exposed_interests" is no longer than 150 words, may reflect newly popular books, viral recommendations, bestseller exposure or collective social influence.
-      4. The "reasoning" is no longer than 250 words.
-      5. Do not provided any other text outside the JSON string.
-
 yelp:
   user: |
     You will serve as an assistant to help me determine which types of business a specific user is likely to enjoy.

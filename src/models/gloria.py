@@ -52,60 +52,62 @@ class GLORIA(GeneralRecommender):
         
         mm_adj_file = os.path.join(dataset_path, 'mm_adj_{}.pt'.format(self.knn_k))
 
-        self.id_embedding = nn.Embedding(num_item, self.feat_embed_dim)
+        self.id_embedding_low = nn.Embedding(num_item, self.feat_embed_dim)
+        self.id_embedding_high = nn.Embedding(num_item, self.feat_embed_dim)
+
         self.mlp_item = nn.Linear(self.t_feat.shape[-1], self.dim_latent, bias=False)
         self.mlp_user = nn.Linear(self.user_feat.shape[-1], self.dim_latent, bias=False)
 
         indices, text_adj = self.get_knn_adj_mat(self.t_feat)
         self.mm_adj = text_adj
 
-        # packing interaction in training into edge_index
         train_interactions = dataset.inter_matrix(form='coo').astype(np.float32)
         edge_index = self.pack_edge_index(train_interactions)
 
+        item_ids = edge_index[:, 1] - self.num_user
+        item_degree = np.bincount(item_ids, minlength=self.num_item)
 
-        self.edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous().to(self.device)
-        self.edge_index = torch.cat((self.edge_index, self.edge_index[[1, 0]]), dim=1)
+        high_ratio = 0.10
+        num_high = int(self.num_item * high_ratio)
 
-        self.item_index = torch.zeros([self.num_item], dtype=torch.long)
-        index = []
-        for i in range(self.num_item):
-            self.item_index[i] = i
-            index.append(i)
-        self.drop_percent = self.drop_rate
-        self.single_percent = 1
+        high_items = np.argsort(item_degree)[-num_high:]
+        high_items = set(high_items.tolist())
 
-        drop_item = torch.tensor(
-            np.random.choice(self.item_index, int(self.num_item * self.drop_percent), replace=False))
-        drop_item_single = drop_item[:int(self.single_percent * len(drop_item))]
+        low_edges = []
+        high_edges = []
 
-        self.dropt_node_idx_single = drop_item_single[int(len(drop_item_single) * 2 / 3):]
-
-        self.dropt_node_idx = self.dropt_node_idx_single
-
-        mask_cnt = torch.zeros(self.num_item, dtype=int).tolist()
         for edge in edge_index:
-            mask_cnt[edge[1] - self.num_user] += 1
-        mask_dropt = []
-        for idx, num in enumerate(mask_cnt):
-            temp_false = [False] * num
-            temp_true = [True] * num
-            mask_dropt.extend(temp_false) if idx in self.dropt_node_idx else mask_dropt.extend(temp_true)
+            item_id = edge[1] - self.num_user
 
-        edge_index = edge_index[np.lexsort(edge_index.T[1, None])]
-        edge_index_dropt = edge_index[mask_dropt]
+            if item_id in high_items:
+                high_edges.append(edge)
+            else:
+                low_edges.append(edge)
 
-        self.edge_index_dropt = torch.tensor(edge_index_dropt).t().contiguous().to(self.device)
+        low_edges = np.array(low_edges, dtype=np.int64)
+        high_edges = np.array(high_edges, dtype=np.int64)
 
-        self.edge_index_dropt = torch.cat((self.edge_index_dropt, self.edge_index_dropt[[1, 0]]), dim=1)
+        self.edge_index_low = torch.tensor(low_edges, dtype=torch.long).t().contiguous().to(self.device)
+        self.edge_index_high = torch.tensor(high_edges, dtype=torch.long).t().contiguous().to(self.device)
 
-        self.t_drop_ze = torch.zeros(len(self.dropt_node_idx), self.t_feat.size(1)).to(self.device)
-        self.t_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
-                        num_layer=self.num_layer, has_feature=True, dropout=self.drop_rate, dim_latent=64,
-                        device=self.device, features=self.t_feat, user_profile=self.user_feat)
-        self.id_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
+        self.edge_index_low = torch.cat(
+            (self.edge_index_low, self.edge_index_low[[1, 0]]),
+            dim=1
+        )
+
+        self.edge_index_high = torch.cat(
+            (self.edge_index_high, self.edge_index_high[[1, 0]]),
+            dim=1
+        )
+        # self.edge = concat 2 edge_index to make the graph undirected
+        self.edge_index = torch.cat((self.edge_index_low, self.edge_index_high), dim=1)
+
+        self.idl_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
                         num_layer=self.num_layer, has_feature=False, dropout=self.drop_rate, dim_latent=64,
-                        device=self.device, features=self.id_embedding.weight)
+                        device=self.device, features=self.id_embedding_low.weight)
+        self.idh_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
+                        num_layer=self.num_layer, has_feature=False, dropout=self.drop_rate, dim_latent=64,
+                        device=self.device, features=self.id_embedding_high.weight)
         if config['fusion'] in ['add', 'pool']:
             pass
         elif config['fusion'] == 'Multi-Head Attention':
@@ -156,35 +158,22 @@ class GLORIA(GeneralRecommender):
         pos_item_nodes += self.n_users
         neg_item_nodes += self.n_users
 
-        item_feat = self.mlp_item(self.t_feat)
-        user_feat = F.normalize(self.mlp_user(self.user_feat))
+        # item_feat = self.mlp_item(self.t_feat)
+        # user_feat = F.normalize(self.mlp_user(self.user_feat))
         
-        self.t_rep, self.t_preference = self.t_gcn(self.edge_index, item_feat)
-        self.id_rep, self.id_preference = self.id_gcn(self.edge_index, self.id_embedding.weight)
+        self.idl_rep, self.t_preference = self.idl_gcn(self.edge_index, self.id_embedding_low.weight)
+        self.idh_rep, self.id_preference = self.idh_gcn(self.edge_index, self.id_embedding_high.weight)
 
-        item_repT = self.t_rep[self.num_user:]
-        item_repI = self.id_rep[self.num_user:]
+        item_repl = self.idl_rep[self.num_user:]
+        item_reph = self.idh_rep[self.num_user:]
 
-        item_rep = torch.cat((item_repT, item_repI), dim=1)
+        item_rep = torch.cat((item_repl, item_reph), dim=1)
         item_rep = self.item_item(item_rep)
 
-        user_repT = self.t_rep[:self.num_user]
-        user_repI = self.id_rep[:self.num_user]
+        user_repl = self.idl_rep[:self.num_user]
+        user_reph = self.idh_rep[:self.num_user]
 
-        if self.config['fusion'] == 'add':
-            userRepT = user_repT + user_feat
-        elif self.config['fusion'] == 'pool':
-            userRepT = (user_repT + user_feat) / 2
-        elif self.config['fusion'] == 'Multi-Head Attention':
-            output, _ = self.multihead_attn(user_repT.unsqueeze(0), user_feat.unsqueeze(0), user_feat.unsqueeze(0))
-            output = output.squeeze(0)
-            userRepT = output + user_repT
-        elif self.config['fusion'] == 'Transformer':
-            output = self.transformer(user_repT.unsqueeze(0), user_feat.unsqueeze(0), user_feat.unsqueeze(0)).squeeze(0)
-            userRepT = output + user_repT
-        else:
-            raise NotImplementedError
-        user_rep = torch.cat((userRepT, user_repI), dim=1)
+        user_rep = torch.cat((user_repl, user_reph), dim=1)
 
         self.result_embed = torch.cat((user_rep, item_rep), dim=0)
         user_tensor = self.result_embed[user_nodes]

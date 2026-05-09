@@ -70,13 +70,7 @@ def generate_summary(model, tokenizer, batchInfo):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', '-d', type=str, default='book', help='name of datasets')
-    parser.add_argument('--tuning',  '-t', type=bool, default=True, help='load tuned model or pretrain')
     parser.add_argument('--LLM', type=str, default='gema', help='name of LLM to use: Llama or Gemma, Qwen')
-    parser.add_argument("--shard", type=int, default=0)
-    parser.add_argument("--num_shards", type=int, default=1)
-    parser.add_argument("--out", type=str, default="sample_user_profile.json")
-    parser.add_argument('--prompt_profile', '-pp', type=bool, default=True, help='ablation: item profile in prompt or not')
-    parser.add_argument('--prompt_candidate', '-pc', type=bool, default=True, help='use candidate prompt or not')
     args, _ = parser.parse_known_args()
     print(args)
 
@@ -100,7 +94,28 @@ if __name__ == '__main__':
     # =========================
 
     user_interactions = getUser_Interaction(interDF)
+    # from user_interaction, get item degree
+    item_degree = {}
+    for u, items in user_interactions.items():
+        for item in items:
+            if item not in item_degree:
+                item_degree[item] = 0
+            item_degree[item] += 1
+    # sort item theo degree giảm dần
+    sorted_items = sorted(
+        item_degree.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
 
+    # số lượng top item
+    high_ratio = 0.10
+    num_high = int(len(sorted_items) * high_ratio)
+
+    # lấy top 10%
+    popular_items = set([
+        item for item, degree in sorted_items[:num_high]
+    ])
     # =========================
     # Profiling for user
     # =========================
@@ -137,8 +152,6 @@ if __name__ == '__main__':
     ] # More models at https://huggingface.co/unsloth
 
     selected_model = "unsloth/gemma-3-4b-it-unsloth-bnb-4bit"
-    if args.tuning:
-        selected_model = f"gemma3_4b_it_model_book_candidate_True_profile_True"
 
     print(selected_model)
     
@@ -159,12 +172,9 @@ if __name__ == '__main__':
     user_profiles = {}
     checkarray = []
     listUser = list(user_interactions.keys())
-    users = listUser[args.shard::args.num_shards]
+    users = listUser
 
-    if args.tuning:
-        user_profile_path = f'./data/{args.dataset}/batch_tuning{args.LLM}_candidate_{args.prompt_candidate}_profile_{args.prompt_profile}.json'
-    else:
-        user_profile_path = f'./data/{args.dataset}/batch_{args.LLM}_usr_prf_{args.shard}_candidate_{args.prompt_candidate}_profile_{args.prompt_profile}.json'
+    user_profile_path = f'./data/{args.dataset}/batch_{args.LLM}_usr_prf.json'
     if os.path.exists(user_profile_path):
         with open(user_profile_path, 'r', encoding='utf-8') as f:
             user_profiles = json.load(f)
@@ -176,10 +186,12 @@ if __name__ == '__main__':
     for uid in tqdm(users):
         if str(uid) in user_profiles:
             continue
-        u_items = user_interactions[uid]
+        u_is = user_interactions[uid]
+        # u_items contain only items not appearing in popular_items
+        u_items = [item for item in u_is if item not in popular_items]
         random.shuffle(u_items)
         itemInfo = "The user has purchased: \n"
-        for item in u_items[-10:]:
+        for item in u_items:
             itemInfo += itemDesc[item]
 
         messages = get_message(sys_prompt, itemInfo)
@@ -196,18 +208,6 @@ if __name__ == '__main__':
         q_message = []
         q_id = []
         
-    # save batch_messages[0] to file text for debugging
-    # with open(f'./data/{args.dataset}/batch_messages_{args.shard}_candidate_{args.prompt_candidate}_profile_{args.prompt_profile}.txt', 'w', encoding='utf-8') as f:
-    #     for uid, messages in zip(batch_messages[0][0], batch_messages[0][1]):
-    #         print(uid, messages)
-    #         stop
-            # f.write(f"User ID: {uid}\n")
-            # for msg in messages:
-            #     f.write(f"{msg['role']}: {msg['content']}\n")
-            # f.write("\n====================\n\n")
-    
-
-    
     for batchId, batchInfo in tqdm(batch_messages):
         summary = generate_summary(model, tokenizer, batchInfo)
         for i, uid in enumerate(batchId):
