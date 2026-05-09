@@ -101,7 +101,9 @@ class GLORIA(GeneralRecommender):
         )
         # self.edge = concat 2 edge_index to make the graph undirected
         self.edge_index = torch.cat((self.edge_index_low, self.edge_index_high), dim=1)
-
+        self.t_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
+                        num_layer=self.num_layer, has_feature=True, dropout=self.drop_rate, dim_latent=64,
+                        device=self.device, features=self.t_feat, user_profile=self.user_feat)
         self.idl_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
                         num_layer=self.num_layer, has_feature=False, dropout=self.drop_rate, dim_latent=64,
                         device=self.device, features=self.id_embedding_low.weight)
@@ -158,9 +160,10 @@ class GLORIA(GeneralRecommender):
         pos_item_nodes += self.n_users
         neg_item_nodes += self.n_users
 
-        # item_feat = self.mlp_item(self.t_feat)
+        item_feat = self.mlp_item(self.t_feat)
         # user_feat = F.normalize(self.mlp_user(self.user_feat))
-        
+
+        self.t_rep, self.t_preference = self.t_gcn(self.edge_index, item_feat)
         self.idl_rep, self.t_preference = self.idl_gcn(self.edge_index, self.id_embedding_low.weight)
         self.idh_rep, self.id_preference = self.idh_gcn(self.edge_index, self.id_embedding_high.weight)
 
