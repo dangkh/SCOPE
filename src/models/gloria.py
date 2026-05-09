@@ -161,11 +161,11 @@ class GLORIA(GeneralRecommender):
         neg_item_nodes += self.n_users
 
         item_feat = self.mlp_item(self.t_feat)
-        # user_feat = F.normalize(self.mlp_user(self.user_feat))
+        user_feat = F.normalize(self.mlp_user(self.user_feat))
 
         self.t_rep, self.t_preference = self.t_gcn(self.edge_index, item_feat)
-        self.idl_rep, self.t_preference = self.idl_gcn(self.edge_index, self.id_embedding_low.weight)
-        self.idh_rep, self.id_preference = self.idh_gcn(self.edge_index, self.id_embedding_high.weight)
+        self.idl_rep, self.idl_preference = self.idl_gcn(self.edge_index, self.id_embedding_low.weight)
+        self.idh_rep, self.idh_preference = self.idh_gcn(self.edge_index, self.id_embedding_high.weight)
 
         item_repT = self.t_rep[self.num_user:]
         item_repl = self.idl_rep[self.num_user:]
@@ -174,7 +174,7 @@ class GLORIA(GeneralRecommender):
         item_rep = torch.cat((item_repT, item_repl, item_reph), dim=1)
         item_rep = self.item_item(item_rep)
 
-        user_repT = self.t_rep[:self.num_user]
+        user_repT = (self.t_rep[:self.num_user] + user_feat) / 2
         user_repl = self.idl_rep[:self.num_user]
         user_reph = self.idh_rep[:self.num_user]
 
@@ -190,7 +190,12 @@ class GLORIA(GeneralRecommender):
 
     def calculate_loss(self, interaction):
         pos_scores, neg_scores = self.forward(interaction)
-        loss_value = -torch.mean(torch.log2(torch.sigmoid(pos_scores - neg_scores)))
+        users = interaction[0]
+        l1 = (self.t_preference[users]**2).mean()
+        l2 = (self.idl_preference[users]**2).mean()
+        l3 = (self.idh_preference[users]**2).mean()
+        reg_loss = 0.003 * (l1 + l2 + l3)
+        loss_value = -torch.mean(torch.log2(torch.sigmoid(pos_scores - neg_scores))) + reg_loss
         return loss_value
 
     def full_sort_predict(self, interaction):
