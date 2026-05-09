@@ -189,7 +189,6 @@ if __name__ == '__main__':
         u_is = user_interactions[uid]
         # u_items contain only items not appearing in popular_items
         u_items = [item for item in u_is if item not in popular_items]
-        print(len(u_is), len(u_items))
         random.shuffle(u_items)
         itemInfo = "The user has purchased: \n"
         for item in u_items:
