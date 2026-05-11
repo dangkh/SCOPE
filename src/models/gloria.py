@@ -110,6 +110,13 @@ class GLORIA(GeneralRecommender):
         self.idh_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
                         num_layer=self.num_layer, has_feature=False, dropout=self.drop_rate, dim_latent=64,
                         device=self.device, features=self.id_embedding_high.weight)
+        self.summary_dim = self.user_feat.shape[-1]
+        self.jepa_predictor = nn.Sequential(
+            nn.Linear(64 * 2, 128),
+            nn.ReLU(),
+            nn.Linear(128, self.summary_dim)
+        )
+        self.summary_projector = nn.Linear(self.summary_dim, self.summary_dim)
         if config['fusion'] in ['add', 'pool']:
             pass
         elif config['fusion'] == 'Multi-Head Attention':
@@ -161,7 +168,7 @@ class GLORIA(GeneralRecommender):
         neg_item_nodes += self.n_users
 
         item_feat = self.mlp_item(self.t_feat)
-        user_feat = F.normalize(self.mlp_user(self.user_feat))
+        # user_feat = F.normalize(self.mlp_user(self.user_feat))
 
         self.t_rep, self.t_preference = self.t_gcn(self.edge_index, item_feat)
         self.idl_rep, self.idl_preference = self.idl_gcn(self.edge_index, self.id_embedding_low.weight)
@@ -174,10 +181,24 @@ class GLORIA(GeneralRecommender):
         item_rep = torch.cat((item_repT, item_repl, item_reph), dim=1)
         item_rep = self.item_item(item_rep)
 
-        user_repT = (self.t_rep[:self.num_user] + user_feat) / 2
+
+        user_repT = self.t_rep[:self.num_user] 
         user_repl = self.idl_rep[:self.num_user]
         user_reph = self.idh_rep[:self.num_user]
+        jepa_context = torch.cat([user_repl, user_reph], dim=1)
+        summary_pred = self.jepa_predictor(jepa_context)
 
+        summary_target = self.user_feat
+        summary_target = self.summary_projector(summary_target)
+
+        self.jepa_loss = F.mse_loss(
+            F.normalize(summary_pred, dim=1),
+            F.normalize(summary_target.detach(), dim=1)
+        )
+        self.jepa_loss = F.mse_loss(
+            F.normalize(summary_pred, dim=1),
+            F.normalize(summary_target.detach(), dim=1)
+        )
         user_rep = torch.cat((user_repT, user_repl, user_reph), dim=1)
 
         self.result_embed = torch.cat((user_rep, item_rep), dim=0)
@@ -194,7 +215,7 @@ class GLORIA(GeneralRecommender):
         l1 = (self.t_preference[users]**2).mean()
         l2 = (self.idl_preference[users]**2).mean()
         l3 = (self.idh_preference[users]**2).mean()
-        reg_loss = 0.003 * (l1 + l2 + l3)
+        reg_loss = 0.003 * (l1 + l2 + l3) + 0.01 * self.jepa_loss
         loss_value = -torch.mean(torch.log2(torch.sigmoid(pos_scores - neg_scores))) + reg_loss
         return loss_value
 
