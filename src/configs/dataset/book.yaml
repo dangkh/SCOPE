@@ -9,8 +9,8 @@ inter_splitting_label: 'x_label'
 TEXT_ID_FIELD: description
 
 inter_file_name: 'book.inter'
-text_feature_file: 'text_feat.npy'
-user_feature_file: 'llama_user_feat.npy'
+text_feature_file: 'text_feat_original.npy'
+user_feature_file: 'local_gema_user_feat.npy'
 
 
 field_separator: "\t"

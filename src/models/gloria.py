@@ -101,7 +101,9 @@ class GLORIA(GeneralRecommender):
         )
         # self.edge = concat 2 edge_index to make the graph undirected
         self.edge_index = torch.cat((self.edge_index_low, self.edge_index_high), dim=1)
-
+        self.t_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
+                        num_layer=self.num_layer, has_feature=True, dropout=self.drop_rate, dim_latent=64,
+                        device=self.device, features=self.t_feat, user_profile=self.user_feat)
         self.idl_gcn = GCN(self.dataset, batch_size, num_user, num_item, dim_x, self.aggr_mode,
                         num_layer=self.num_layer, has_feature=False, dropout=self.drop_rate, dim_latent=64,
                         device=self.device, features=self.id_embedding_low.weight)
@@ -158,22 +160,25 @@ class GLORIA(GeneralRecommender):
         pos_item_nodes += self.n_users
         neg_item_nodes += self.n_users
 
-        # item_feat = self.mlp_item(self.t_feat)
-        # user_feat = F.normalize(self.mlp_user(self.user_feat))
-        
-        self.idl_rep, self.t_preference = self.idl_gcn(self.edge_index, self.id_embedding_low.weight)
-        self.idh_rep, self.id_preference = self.idh_gcn(self.edge_index, self.id_embedding_high.weight)
+        item_feat = self.mlp_item(self.t_feat)
+        user_feat = F.normalize(self.mlp_user(self.user_feat))
 
+        self.t_rep, self.t_preference = self.t_gcn(self.edge_index, item_feat)
+        self.idl_rep, self.idl_preference = self.idl_gcn(self.edge_index_low, self.id_embedding_low.weight)
+        self.idh_rep, self.idh_preference = self.idh_gcn(self.edge_index, self.id_embedding_high.weight)
+
+        item_repT = self.t_rep[self.num_user:]
         item_repl = self.idl_rep[self.num_user:]
         item_reph = self.idh_rep[self.num_user:]
 
-        item_rep = torch.cat((item_repl, item_reph), dim=1)
+        item_rep = torch.cat((item_repT, item_repl, item_reph), dim=1)
         item_rep = self.item_item(item_rep)
 
+        user_repT = (self.t_rep[:self.num_user] + user_feat) / 2
         user_repl = self.idl_rep[:self.num_user]
         user_reph = self.idh_rep[:self.num_user]
 
-        user_rep = torch.cat((user_repl, user_reph), dim=1)
+        user_rep = torch.cat((user_repT, user_repl, user_reph), dim=1)
 
         self.result_embed = torch.cat((user_rep, item_rep), dim=0)
         user_tensor = self.result_embed[user_nodes]
@@ -185,7 +190,12 @@ class GLORIA(GeneralRecommender):
 
     def calculate_loss(self, interaction):
         pos_scores, neg_scores = self.forward(interaction)
-        loss_value = -torch.mean(torch.log2(torch.sigmoid(pos_scores - neg_scores)))
+        users = interaction[0]
+        l1 = (self.t_preference[users]**2).mean()
+        l2 = (self.idl_preference[users]**2).mean()
+        l3 = (self.idh_preference[users]**2).mean()
+        reg_loss = 0.003 * (l1 + l2 + l3)
+        loss_value = -torch.mean(torch.log2(torch.sigmoid(pos_scores - neg_scores))) + reg_loss
         return loss_value
 
     def full_sort_predict(self, interaction):
