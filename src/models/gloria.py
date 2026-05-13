@@ -164,7 +164,7 @@ class GLORIA(GeneralRecommender):
         user_feat = F.normalize(self.mlp_user(self.user_feat))
 
         self.t_rep, self.t_preference = self.t_gcn(self.edge_index, item_feat)
-        self.idl_rep, self.idl_preference = self.idl_gcn(self.edge_index, self.id_embedding_low.weight)
+        self.idl_rep, self.idl_preference = self.idl_gcn(self.edge_index_low, self.id_embedding_low.weight)
         self.idh_rep, self.idh_preference = self.idh_gcn(self.edge_index, self.id_embedding_high.weight)
 
         item_repT = self.t_rep[self.num_user:]
