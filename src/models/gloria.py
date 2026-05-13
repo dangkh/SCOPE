@@ -122,12 +122,12 @@ class GLORIA(GeneralRecommender):
             raise NotImplementedError
 
         self.gate = nn.Sequential(
-            nn.Linear(129, 64),
+            nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(64, 1)
+            nn.Linear(32, 1)
         )
 
-        self.out_proj = nn.Linear(64, 64) 
+        self.out_proj = nn.Linear(2, 1) 
 
         
 
@@ -177,30 +177,31 @@ class GLORIA(GeneralRecommender):
         item_feat = self.mlp_item(self.t_feat)
         user_feat = F.normalize(self.mlp_user(self.user_feat))
 
-        # self.t_rep, self.t_preference = self.t_gcn(self.edge_index, item_feat)
+        self.t_rep, self.t_preference = self.t_gcn(self.edge_index, item_feat)
         self.idl_rep, self.idl_preference = self.idl_gcn(self.edge_index_low, self.id_embedding_low.weight)
         self.idh_rep, self.idh_preference = self.idh_gcn(self.edge_index, self.id_embedding_high.weight)
 
-        # item_repT = self.t_rep[self.num_user:]
+        item_repT = self.t_rep[self.num_user:]
         item_repl = self.idl_rep[self.num_user:]
         item_reph = self.idh_rep[self.num_user:]
 
-        item_rep = torch.cat((item_repl, item_reph), dim=1)
+        item_rep = torch.cat((item_repT, item_repl, item_reph), dim=1)
         item_rep = self.item_item(item_rep)
 
-        # user_repT = (self.t_rep[:self.num_user] + user_feat) / 2
+        user_repT = (self.t_rep[:self.num_user] + user_feat) / 2
         user_repl = self.idl_rep[:self.num_user]
         user_reph = self.idh_rep[:self.num_user]
 
         # semantic Preference Conflict = 1 - cos(self.user_feat and self.local_feat)
         c_u = 1 - F.cosine_similarity(self.user_feat, self.local_feat, dim=-1)
         c_u = c_u.unsqueeze(-1)
-        z_exp = user_reph - user_repl
-        gate_input = torch.cat([user_repl, z_exp, c_u], dim=-1)
-        alpha_e = torch.sigmoid(self.gate(gate_input))  # [B, 1]
-        user_reph = user_repl + alpha_e * z_exp    
+        gate_input =  user_reph - user_repl
+        gate_output = self.gate(gate_input)
+        alpha_input = torch.cat([c_u, gate_output], dim=1)
+        alpha_e = torch.sigmoid(self.out_proj(alpha_input))  # [B, 1]
+        user_reph = alpha_e * user_reph
 
-        user_rep = torch.cat((user_repl, user_reph), dim=1)
+        user_rep = torch.cat((user_repT, user_repl, user_reph), dim=1)
 
         self.result_embed = torch.cat((user_rep, item_rep), dim=0)
         user_tensor = self.result_embed[user_nodes]
