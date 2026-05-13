@@ -121,13 +121,11 @@ class GLORIA(GeneralRecommender):
         else:
             raise NotImplementedError
 
-        self.gate = nn.Sequential(
-            nn.Linear(129, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1)
-        )
+        self.user_beta = nn.Embedding(num_users, 1)
+        self.user_bias = nn.Embedding(num_users, 1)
 
-        self.out_proj = nn.Linear(64, 64) 
+        nn.init.ones_(self.user_beta.weight)
+        nn.init.zeros_(self.user_bias.weight)
 
         
 
@@ -196,8 +194,7 @@ class GLORIA(GeneralRecommender):
         c_u = 1 - F.cosine_similarity(self.user_feat, self.local_feat, dim=-1)
         c_u = c_u.unsqueeze(-1) # [B, 1]
         z_exp = user_reph - user_repl # [B, 64]
-        gate_input = torch.cat([user_repl, z_exp, c_u], dim=-1)
-        alpha_e = torch.sigmoid(self.gate(gate_input))  # [B, 1]
+        alpha_e = self.user_beta * c_u + self.user_bias
         user_reph = user_repl + alpha_e * z_exp    
 
         user_rep = torch.cat((user_repT, user_repl, user_reph), dim=1)
