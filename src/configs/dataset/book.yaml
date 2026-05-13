@@ -10,7 +10,8 @@ TEXT_ID_FIELD: description
 
 inter_file_name: 'book.inter'
 text_feature_file: 'text_feat_original.npy'
-user_feature_file: 'local_gema_user_feat.npy'
+user_feature_file: 'full_gema_user_feat.npy'
+local_feature_file: 'local_gema_item_feat.npy'
 
 
 field_separator: "\t"

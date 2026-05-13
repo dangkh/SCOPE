@@ -19,6 +19,8 @@ from common.init import xavier_uniform_initialization
 from torch.nn import MultiheadAttention
 from .transformer import TransformerEncoder
 
+
+
 class GLORIA(GeneralRecommender):
     def __init__(self, config, dataset):
         super(GLORIA, self).__init__(config, dataset)
@@ -118,6 +120,15 @@ class GLORIA(GeneralRecommender):
             self.transformer = TransformerEncoder(64, num_heads= 4, layers=2)
         else:
             raise NotImplementedError
+
+        self.gate = nn.Sequential(
+            nn.Linear(129, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1)
+        )
+
+        self.out_proj = nn.Linear(64, 64) 
+
         
 
 
@@ -160,6 +171,9 @@ class GLORIA(GeneralRecommender):
         pos_item_nodes += self.n_users
         neg_item_nodes += self.n_users
 
+        
+
+
         item_feat = self.mlp_item(self.t_feat)
         user_feat = F.normalize(self.mlp_user(self.user_feat))
 
@@ -177,6 +191,14 @@ class GLORIA(GeneralRecommender):
         user_repT = (self.t_rep[:self.num_user] + user_feat) / 2
         user_repl = self.idl_rep[:self.num_user]
         user_reph = self.idh_rep[:self.num_user]
+
+        # semantic Preference Conflict = 1 - cos(self.user_feat and self.local_feat)
+        c_u = 1 - F.cosine_similarity(self.user_feat, self.local_feat, dim=-1)
+        c_u = c_u.unsqueeze(-1) # [B, 1]
+        z_exp = user_reph - user_repl # [B, 64]
+        gate_input = torch.cat([user_repl, z_exp, c_u], dim=-1)
+        alpha_e = torch.sigmoid(self.gate(gate_input))  # [B, 1]
+        user_reph = user_repl + alpha_e * z_exp    
 
         user_rep = torch.cat((user_repT, user_repl, user_reph), dim=1)
 
