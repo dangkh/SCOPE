@@ -127,7 +127,9 @@ class GLORIA(GeneralRecommender):
             nn.Linear(32, 1)
         )
 
-        self.out_proj = nn.Linear(2, 1) 
+        self.out_proj = nn.Linear(3, 1) 
+        self.userW = nn.Parameter(torch.empty(num_user, 1))
+        nn.init.xavier_uniform_(self.userW)
 
         
 
@@ -196,10 +198,12 @@ class GLORIA(GeneralRecommender):
         c_u = 1 - F.cosine_similarity(self.user_feat, self.local_feat, dim=-1)
         c_u = c_u.unsqueeze(-1)
         gate_input =  user_reph - user_repl
+        # gate_input = F.layer_norm(user_reph - user_repl, [user_reph.size(-1)])
         gate_output = self.gate(gate_input)
-        alpha_input = torch.cat([c_u, gate_output], dim=1)
+        alpha_input = torch.cat([self.userW, c_u, gate_output], dim=1)
         alpha_e = torch.sigmoid(self.out_proj(alpha_input))  # [B, 1]
-        user_reph = alpha_e * user_reph
+        scale = 0.5 + 0.5 * alpha_e  # scale to [0.5, 1]
+        user_reph = scale * user_reph
 
         user_rep = torch.cat((user_repT, user_repl, user_reph), dim=1)
 
