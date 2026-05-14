@@ -19,6 +19,8 @@ from common.init import xavier_uniform_initialization
 from torch.nn import MultiheadAttention
 from .transformer import TransformerEncoder
 
+
+
 class GLORIA(GeneralRecommender):
     def __init__(self, config, dataset):
         super(GLORIA, self).__init__(config, dataset)
@@ -118,6 +120,17 @@ class GLORIA(GeneralRecommender):
             self.transformer = TransformerEncoder(64, num_heads= 4, layers=2)
         else:
             raise NotImplementedError
+
+        self.gate = nn.Sequential(
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1)
+        )
+
+        self.out_proj = nn.Linear(3, 1) 
+        self.userW = nn.Parameter(torch.empty(num_user, 1))
+        nn.init.xavier_normal_(self.userW)
+
         
 
 
@@ -160,8 +173,11 @@ class GLORIA(GeneralRecommender):
         pos_item_nodes += self.n_users
         neg_item_nodes += self.n_users
 
+        
+
+
         item_feat = self.mlp_item(self.t_feat)
-        user_feat = F.normalize(self.mlp_user(self.user_feat))
+        user_feat = F.normalize(self.mlp_user(self.local_feat))
 
         self.t_rep, self.t_preference = self.t_gcn(self.edge_index, item_feat)
         self.idl_rep, self.idl_preference = self.idl_gcn(self.edge_index_low, self.id_embedding_low.weight)
@@ -177,6 +193,16 @@ class GLORIA(GeneralRecommender):
         user_repT = (self.t_rep[:self.num_user] + user_feat) / 2
         user_repl = self.idl_rep[:self.num_user]
         user_reph = self.idh_rep[:self.num_user]
+
+        # semantic Preference Conflict = 1 - cos(self.user_feat and self.local_feat)
+        c_u = 1 - F.cosine_similarity(self.user_feat, self.local_feat, dim=-1)
+        c_u = c_u.unsqueeze(-1)
+        gate_input = F.layer_norm(user_reph - user_repl, [user_reph.size(-1)])
+        gate_output = self.gate(gate_input)
+        alpha_input = torch.cat([self.userW, c_u, gate_output], dim=1)
+        alpha_e = torch.sigmoid(self.out_proj(alpha_input))  # [B, 1]
+        scale = 0.5 + 0.5 * alpha_e 
+        user_reph = scale * user_reph
 
         user_rep = torch.cat((user_repT, user_repl, user_reph), dim=1)
 
@@ -241,9 +267,8 @@ class GCN(torch.nn.Module):
         x = F.normalize(x)
         h = self.conv_embed_1(x, edge_index)  # equation 1
         h_1 = self.conv_embed_1(h, edge_index)
-        h_2 = self.conv_embed_1(h_1, edge_index)
 
-        x_hat =h + x + h_1 + h_2
+        x_hat =h + x + h_1 
         return x_hat, self.preference
 
 

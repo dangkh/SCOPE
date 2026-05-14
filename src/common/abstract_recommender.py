@@ -92,12 +92,15 @@ class GeneralRecommender(AbstractRecommender):
         # if file exist?
         t_feat_file_path = os.path.join(dataset_path, config['text_feature_file'])
         user_feat_file_path = os.path.join(dataset_path, config['user_feature_file'])
+        local_feat_file_path = os.path.join(dataset_path, config['local_feature_file'])
         print('Loading pre-extracted features from {}'.format(t_feat_file_path))
 
         if os.path.isfile(t_feat_file_path):
             self.t_feat = torch.from_numpy(np.load(t_feat_file_path, allow_pickle=True)).type(torch.FloatTensor).to(
                 self.device)
             self.user_feat = torch.from_numpy(np.load(user_feat_file_path, allow_pickle=True)).type(
+                torch.FloatTensor).to(self.device)
+            self.local_feat = torch.from_numpy(np.load(local_feat_file_path, allow_pickle=True)).type(
                 torch.FloatTensor).to(self.device)
 
         assert  self.t_feat is not None, 'Features all NONE'

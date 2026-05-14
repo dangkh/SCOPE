@@ -64,24 +64,11 @@ import re, json
 from tqdm import tqdm
 for ii in tqdm(range(len(jsonfile))):
 	try:
-		# raw = jsonfile[str(ii)]['summary']
-		# match = re.search(r'\{.*\}', raw, re.DOTALL)
-		# clean = match.group()
-		# level1 = json.loads(clean)
-		# summarization = level1["summarization"]
-
 		raw = jsonfile[str(ii)]['summary']
-
-		# Step 1: parse outer string → dict
-		level1 = ast.literal_eval(raw)
-
-		# Step 2: lấy inner JSON string
-		inner_json_str = level1['summary']
-
-		# Step 3: parse JSON → dict thật
-		level2 = json.loads(inner_json_str)
-
-		summarization = level2["summarization"]
+		clean = re.sub(r"^```json\s*|\s*```$", "", raw.strip(), flags=re.DOTALL)
+		level = json.loads(clean)
+		summarization = level["summarization"]
+		reasoning = level["reasoning"]
 	except Exception:
 		try:
 			level1 = ast.literal_eval(jsonfile[str(ii)]['summary'])
