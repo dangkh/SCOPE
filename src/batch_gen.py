@@ -42,12 +42,16 @@ def generate_summary(model, tokenizer, batchInfo, is_qwen3=False):
         )
         allMessages.append(input_text)
 
-    # ── Step 2: tokenize with the inner text tokenizer ────────────────────
-    tokenizer.tokenizer.padding_side = "left"
-    if tokenizer.tokenizer.pad_token is None:
-        tokenizer.tokenizer.pad_token = tokenizer.tokenizer.eos_token
+    # Use underlying tokenizer when present (e.g., unsloth wrappers),
+    # otherwise use the tokenizer directly (e.g., Qwen2TokenizerFast).
+    base_tokenizer = getattr(tokenizer, "tokenizer", tokenizer)
 
-    inputs = tokenizer.tokenizer(
+    # ── Step 2: tokenize with the selected text tokenizer ─────────────────
+    base_tokenizer.padding_side = "left"
+    if base_tokenizer.pad_token is None:
+        base_tokenizer.pad_token = base_tokenizer.eos_token
+
+    inputs = base_tokenizer(
         allMessages,
         return_tensors="pt",
         padding=True,
@@ -61,14 +65,14 @@ def generate_summary(model, tokenizer, batchInfo, is_qwen3=False):
         max_new_tokens=1024,
         temperature=0.5, top_p=0.95, top_k=20,
         do_sample=False,   # ← must be True when using temperature/top_p/top_k
-        pad_token_id=tokenizer.tokenizer.pad_token_id,
+        pad_token_id=base_tokenizer.pad_token_id,
     )
 
     # ── Step 4: trim prompt tokens, decode only new tokens ────────────────
     generated_ids_trimmed = [
         out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, output)
     ]
-    output_texts = tokenizer.tokenizer.batch_decode(
+    output_texts = base_tokenizer.batch_decode(
         generated_ids_trimmed,
         skip_special_tokens=True,
         clean_up_tokenization_spaces=False,
@@ -78,7 +82,7 @@ def generate_summary(model, tokenizer, batchInfo, is_qwen3=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', '-d', type=str, default='book', help='name of datasets')
-    parser.add_argument('--LLM', type=str, default='gema', help='name of LLM to use: Llama or Gemma, Qwen')
+    parser.add_argument('--LLM', type=str, default='4B', help='name of LLM to use: Llama or Gemma, Qwen')
     args, _ = parser.parse_known_args()
     print(args)
 
@@ -167,9 +171,10 @@ if __name__ == '__main__':
         # token = "hf_...", # use one if using gated models
     )
 
-    tokenizer.tokenizer.padding_side = "left"
-    if tokenizer.tokenizer.pad_token is None:
-        tokenizer.tokenizer.pad_token = tokenizer.tokenizer.eos_token
+    base_tokenizer = getattr(tokenizer, "tokenizer", tokenizer)
+    base_tokenizer.padding_side = "left"
+    if base_tokenizer.pad_token is None:
+        base_tokenizer.pad_token = base_tokenizer.eos_token
     FastLanguageModel.for_inference(model)
     user_profiles = {}
     checkarray = []
@@ -215,9 +220,10 @@ if __name__ == '__main__':
         for i, uid in enumerate(batchId):
             user_profiles[str(uid)] = { "summary": summary[i] }
 
-        if (len(user_profiles)) % (batch_size * 10) == 0:
+        if (len(user_profiles)) % (batch_size * 1) == 0:
             with open(user_profile_path, 'w', encoding='utf-8') as f:
                 json.dump(user_profiles, f, ensure_ascii=False, indent=4)
+            break # for debug, only run 1 batch
 
     with open(user_profile_path, 'w', encoding='utf-8') as f:
         json.dump(user_profiles, f, ensure_ascii=False, indent=4)
