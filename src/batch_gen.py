@@ -15,22 +15,30 @@ from unsloth.chat_templates import get_chat_template
 
 
 
-def get_message(system_prompt, content): 
-    messages = [
-        {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
-        {"role": "user",   "content": [{"type": "text", "text": content}]}
-    ]
+def get_message(system_prompt, content, use_list_format=False): 
+    if use_list_format:
+        messages = [
+            {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
+            {"role": "user",   "content": [{"type": "text", "text": content}]}
+        ]
+    else:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": content}
+        ]
     return messages
 
 
-def generate_summary(model, tokenizer, batchInfo):
+def generate_summary(model, tokenizer, batchInfo, is_qwen3=False):
     # ── Step 1: render each conversation to a string ──────────────────────
     allMessages = []
+    chat_template_kwargs = dict(tokenize=False, add_generation_prompt=True)
+    if is_qwen3:
+        chat_template_kwargs["enable_thinking"] = False
     for messages in batchInfo:
         input_text = tokenizer.apply_chat_template(
             messages,
-            tokenize=False,
-            add_generation_prompt=True,
+            **chat_template_kwargs,
         )
         allMessages.append(input_text)
 
@@ -136,22 +144,16 @@ if __name__ == '__main__':
         raise ValueError(f"{item_item_path} does not exist, please run preprocess.py to build it.")
 
 
-    fourbit_models = [
-        "unsloth/Qwen3-4B-Instruct-2507-unsloth-bnb-4bit", # Qwen 14B 2x faster
-        "unsloth/Qwen3-4B-Thinking-2507-unsloth-bnb-4bit",
-        "unsloth/Qwen3-8B-unsloth-bnb-4bit",
-        "unsloth/Qwen3-14B-unsloth-bnb-4bit",
-        "unsloth/Qwen3-32B-unsloth-bnb-4bit",
-
-        # 4bit dynamic quants for superior accuracy and low memory use
-        "unsloth/gemma-3-12b-it-unsloth-bnb-4bit",
-        "unsloth/Phi-4",
-        "unsloth/Llama-3.1-8B",
-        "unsloth/Llama-3.2-3B",
-        "unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit" # [NEW] We support TTS models!
-    ] # More models at https://huggingface.co/unsloth
-
-    selected_model = "unsloth/gemma-3-4b-it-unsloth-bnb-4bit"
+    model_map = {
+        "gema":  "unsloth/gemma-3-4b-it-unsloth-bnb-4bit",
+        "4B":    "unsloth/Qwen3-4B-Instruct-2507",
+        "llama": "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit",
+    }
+    if args.LLM not in model_map:
+        raise ValueError(f"Unknown LLM '{args.LLM}'. Choose from: {list(model_map.keys())}")
+    selected_model = model_map[args.LLM]
+    is_qwen3 = args.LLM == "4B"
+    is_gemma = args.LLM == "gema"
 
     print(selected_model)
     
@@ -194,7 +196,7 @@ if __name__ == '__main__':
         for item in u_items:
             itemInfo += itemDesc[item]
 
-        messages = get_message(sys_prompt, itemInfo)
+        messages = get_message(sys_prompt, itemInfo, use_list_format=is_gemma)
         q_message.append(messages)
         q_id.append(str(uid))
         if len(q_message) >= batch_size:
@@ -209,7 +211,7 @@ if __name__ == '__main__':
         q_id = []
         
     for batchId, batchInfo in tqdm(batch_messages):
-        summary = generate_summary(model, tokenizer, batchInfo)
+        summary = generate_summary(model, tokenizer, batchInfo, is_qwen3=is_qwen3)
         for i, uid in enumerate(batchId):
             user_profiles[str(uid)] = { "summary": summary[i] }
 
