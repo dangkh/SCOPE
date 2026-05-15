@@ -7,11 +7,20 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 import os
 import random
+import warnings
 from unsloth import FastLanguageModel
 import torch
 import json
 from helper import build_item_item_knn, get_itemDesc, getUser_Interaction
 from unsloth.chat_templates import get_chat_template
+
+# Suppress a known Unsloth/PyTorch output-resize deprecation warning.
+warnings.filterwarnings(
+    "ignore",
+    message=r"An output with one or more elements was resized since it had shape .*",
+    category=UserWarning,
+    module=r"unsloth\.kernels\.utils",
+)
 
 
 
@@ -220,10 +229,10 @@ if __name__ == '__main__':
         for i, uid in enumerate(batchId):
             user_profiles[str(uid)] = { "summary": summary[i] }
 
-        if (len(user_profiles)) % (batch_size * 1) == 0:
+        if (len(user_profiles)) % (batch_size * 10) == 0:
             with open(user_profile_path, 'w', encoding='utf-8') as f:
                 json.dump(user_profiles, f, ensure_ascii=False, indent=4)
-            break # for debug, only run 1 batch
+            # break # for debug, only run 1 batch
 
     with open(user_profile_path, 'w', encoding='utf-8') as f:
         json.dump(user_profiles, f, ensure_ascii=False, indent=4)
