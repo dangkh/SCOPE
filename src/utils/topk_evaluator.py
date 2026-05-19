@@ -10,6 +10,7 @@ import torch
 from utils.metrics import metrics_dict
 from torch.nn.utils.rnn import pad_sequence
 from utils.utils import get_local_time
+import json
 
 
 # These metrics are typical in topk recommendations
@@ -70,6 +71,22 @@ class TopKEvaluator(object):
         pos_items = eval_data.get_eval_items()
         pos_len_list = eval_data.get_eval_len_list()
         topk_index = torch.cat(batch_matrix_list, dim=0).cpu().numpy()
+        
+        assert len(pos_len_list) == len(topk_index)
+        # if recom right?
+        itemPredDict = {}
+        itemRecallDict = {}
+        bool_rec_matrix = []
+        for m, n in zip(pos_items, topk_index):
+            bool_rec_matrix.append([True if i in m else False for i in n])
+            alpha = 1 / len(m) if len(m) > 0 else 0
+            for item in n:
+                if item in m:
+                    if item not in itemPredDict:
+                        itemPredDict[int(item)] = 0
+                        itemRecallDict[int(item)] = 0
+                    itemPredDict[int(item)] += 1
+                    itemRecallDict[int(item)] += alpha
         # if save recommendation result?
         if self.save_recom_result and is_test:
             dataset_name = self.config['dataset']
@@ -78,18 +95,16 @@ class TopKEvaluator(object):
             dir_name = os.path.abspath(self.config['recommend_topk'])
             if not os.path.exists(dir_name):
                 os.makedirs(dir_name)
-            file_path = os.path.join(dir_name, '{}-{}-idx{}-top{}-{}.csv'.format(
-                model_name, dataset_name, idx, max_k, get_local_time()))
-            x_df = pd.DataFrame(topk_index)
-            x_df.insert(0, 'id', eval_data.get_eval_users())
-            x_df.columns = ['id']+['top_'+str(i) for i in range(max_k)]
-            x_df = x_df.astype(int)
-            x_df.to_csv(file_path, sep='\t', index=False)
-        assert len(pos_len_list) == len(topk_index)
-        # if recom right?
-        bool_rec_matrix = []
-        for m, n in zip(pos_items, topk_index):
-            bool_rec_matrix.append([True if i in m else False for i in n])
+            file_path_hit = os.path.join(dir_name, 'hit{}-{}-idx{}-top{}.json'.format(
+                model_name, dataset_name, idx, max_k))
+            # save itemPredDict to file_path
+            with open(file_path_hit, 'w') as f:
+                json.dump(itemPredDict, f, indent=4)
+            file_path_recall = os.path.join(dir_name, 'recall{}-{}-idx{}-top{}.json'.format(
+                model_name, dataset_name, idx, max_k))
+            # save itemRecallDict to file_path
+            with open(file_path_recall, 'w') as f:
+                json.dump(itemRecallDict, f, indent=4)
         bool_rec_matrix = np.asarray(bool_rec_matrix)
 
         # get metrics

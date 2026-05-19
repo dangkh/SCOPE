@@ -223,7 +223,7 @@ class Trainer(AbstractTrainer):
                                      (epoch_idx, valid_end_time - valid_start_time, valid_score)
                 valid_result_output = 'valid result: \n' + dict2str(valid_result)
                 # test
-                _, test_result = self._valid_epoch(test_data, False, epoch_idx)
+                _, test_result = self._valid_epoch(test_data, True, epoch_idx)
                 if verbose:
                     self.logger.info(valid_score_output)
                     self.logger.info(valid_result_output)
