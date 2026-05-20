@@ -69,7 +69,7 @@ class GLORIA(GeneralRecommender):
         item_ids = edge_index[:, 1] - self.num_user
         item_degree = np.bincount(item_ids, minlength=self.num_item)
 
-        high_ratio = 0.10
+        high_ratio = 0.01
         num_high = int(self.num_item * high_ratio)
 
         high_items = np.argsort(item_degree)[-num_high:]
@@ -127,9 +127,7 @@ class GLORIA(GeneralRecommender):
             nn.Linear(32, 1)
         )
 
-        self.out_proj = nn.Linear(3, 1) 
-        self.userW = nn.Parameter(torch.empty(num_user, 1))
-        nn.init.xavier_normal_(self.userW)
+        self.out_proj = nn.Linear(2, 1) 
 
         
 
@@ -173,9 +171,6 @@ class GLORIA(GeneralRecommender):
         pos_item_nodes += self.n_users
         neg_item_nodes += self.n_users
 
-        
-
-
         item_feat = self.mlp_item(self.t_feat)
         user_feat = F.normalize(self.mlp_user(self.local_feat))
 
@@ -194,14 +189,14 @@ class GLORIA(GeneralRecommender):
         user_repl = self.idl_rep[:self.num_user]
         user_reph = self.idh_rep[:self.num_user]
 
-        # semantic Preference Conflict = 1 - cos(self.user_feat and self.local_feat)
-        c_u = 1 - F.cosine_similarity(self.user_feat, self.local_feat, dim=-1)
+        c_u = F.cosine_similarity(self.user_feat, self.local_feat, dim=-1)
         c_u = c_u.unsqueeze(-1)
-        gate_input = F.layer_norm(user_reph - user_repl, [user_reph.size(-1)])
-        gate_output = self.gate(gate_input)
-        alpha_input = torch.cat([self.userW, c_u, gate_output], dim=1)
-        alpha_e = torch.sigmoid(self.out_proj(alpha_input))  # [B, 1]
+        gate_input = F.normalize(user_reph - user_repl)
+        alpha_e = torch.sigmoid(self.gate(c_u * gate_input))
         scale = 0.5 + 0.5 * alpha_e 
+        # for visualize correlation
+        self.alpha_e = alpha_e
+        self.c_u = c_u
         user_reph = scale * user_reph
 
         user_rep = torch.cat((user_repT, user_repl, user_reph), dim=1)

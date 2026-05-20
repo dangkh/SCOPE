@@ -229,6 +229,8 @@ class Trainer(AbstractTrainer):
                     self.logger.info(valid_result_output)
                     self.logger.info('test result: \n' + dict2str(test_result))
                 if update_flag:
+                    np.save('alpha.npy', self.model.alpha_e.cpu().detach().numpy())
+                    np.save('cu.npy', self.model.c_u.cpu().detach().numpy())
                     update_output = '██ ' + self.config['model'] + '--Best validation results updated!!!'
                     if verbose:
                         self.logger.info(update_output)
