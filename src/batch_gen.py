@@ -71,6 +71,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', '-d', type=str, default='book', help='name of datasets')
     parser.add_argument('--LLM', type=str, default='gema', help='name of LLM to use: Llama or Gemma, Qwen')
+    # output file name
+    parser.add_argument('--output', '-o', type=str, default='user_profiles.json', help='output file name for user profiles')
     args, _ = parser.parse_known_args()
     print(args)
 
@@ -126,16 +128,6 @@ if __name__ == '__main__':
 
     itemDesc = get_itemDesc(metaDF)
 
-    # for each item, find top-k similar items
-    top_k = 10
-    item_item_path = f'./data/{args.dataset}/item_top{top_k}item.npy'
-    if os.path.exists(item_item_path):
-        print(f"{item_item_path} exists, skip building item-item knn.")
-        item_kitem = np.load(item_item_path)
-    else:
-        raise ValueError(f"{item_item_path} does not exist, please run preprocess.py to build it.")
-
-
     fourbit_models = [
         "unsloth/Qwen3-4B-Instruct-2507-unsloth-bnb-4bit", # Qwen 14B 2x faster
         "unsloth/Qwen3-4B-Thinking-2507-unsloth-bnb-4bit",
@@ -174,7 +166,8 @@ if __name__ == '__main__':
     listUser = list(user_interactions.keys())
     users = listUser
 
-    user_profile_path = f'./data/{args.dataset}/batch_{args.LLM}_usr_prf.json'
+    # your output filename for user profiles
+    user_profile_path = f'./data/{args.dataset}/{args.output}'
     if os.path.exists(user_profile_path):
         with open(user_profile_path, 'r', encoding='utf-8') as f:
             user_profiles = json.load(f)

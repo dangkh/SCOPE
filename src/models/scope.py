@@ -21,9 +21,9 @@ from .transformer import TransformerEncoder
 
 
 
-class GLORIA(GeneralRecommender):
+class SCOPE(GeneralRecommender):
     def __init__(self, config, dataset):
-        super(GLORIA, self).__init__(config, dataset)
+        super(SCOPE, self).__init__(config, dataset)
 
         num_user = self.n_users
         num_item = self.n_items

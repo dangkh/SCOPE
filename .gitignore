@@ -1,3 +1,6 @@
 /data
 /log
 /src/models/__pycache__
+/conflict
+/cu
+/lightGCN
