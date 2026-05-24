@@ -82,6 +82,19 @@ def getUser_Interaction(interDF):
 		user_interactions[uid].append(int(iid))
 	return user_interactions
 
+def getUser_pred(interDF):
+	user_interactions = {}
+	for idx, row in tqdm(interDF.iterrows(), total=interDF.shape[0]):
+		uid = row['userID']
+		iid = row['itemID']
+		label = row['x_label']
+		if label != 1:
+			continue
+		if uid not in user_interactions:
+			user_interactions[uid] = []
+		user_interactions[uid].append(int(iid))
+	return user_interactions
+
 def get_itemDesc(metaDF, merge=True):
 	itemDesc = []
 	for idx, row in tqdm(metaDF.iterrows(), total=metaDF.shape[0]):
