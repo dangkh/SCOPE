@@ -98,6 +98,6 @@ def get_itemDesc(metaDF, merge=True):
 if __name__ == "__main__":
 	# merge_json_files("./data/book/usr_prf_0.json", "./data/book/usr_prf_1.json", "./data/book/usr0.json")
 	# merge_json_files("./data/book/usr_prf_2.json", "./data/book/usr_prf_3.json", "./data/book/usr1.json")
-	merge_json_files("./data/book/tuning8B_usr_prf_0_candidate_True_profile_True.json", "./data/book/tuning8B_usr_prf_1_candidate_True_profile_True.json", "./data/book/tuning_llama.json")
+	# merge_json_files("./data/book/tuning8B_usr_prf_0_candidate_True_profile_True.json", "./data/book/tuning8B_usr_prf_1_candidate_True_profile_True.json", "./data/book/tuning_llama.json")
 	
 	
