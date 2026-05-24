@@ -95,5 +95,10 @@ movie
 yelp
 ```
 
-## Note
+## Dataset
 
+The preprocessed datasets used in this work will be made publicly available upon paper acceptance. To obtain the original datasets, please refer to the RLMRec paper:
+
+```text
+https://arxiv.org/pdf/2310.15950
+```
