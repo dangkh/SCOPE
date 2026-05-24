@@ -23,7 +23,7 @@ yelp
 For example:
 
 ```bash
-python src/bacth_gen.py -d book -o book_user_profile
+python src/batch_gen.py -d book -o book_user_profile
 ```
 
 You should generate both full-profile and low-profile user files.
@@ -97,4 +97,3 @@ yelp
 
 ## Note
 
-The script name `bacth_gen.py` is kept as provided. If your actual file name is `batch_gen.py`, please replace `bacth_gen.py` with `batch_gen.py` in the commands above.
