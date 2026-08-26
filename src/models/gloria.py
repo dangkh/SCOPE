@@ -127,7 +127,7 @@ class GLORIA(GeneralRecommender):
             nn.Linear(32, 1)
         )
 
-        self.out_proj = nn.Linear(2, 1) 
+        self.out_proj = nn.Linear(1, 1) 
 
         
 
@@ -191,13 +191,16 @@ class GLORIA(GeneralRecommender):
 
         c_u = F.cosine_similarity(self.user_feat, self.local_feat, dim=-1)
         c_u = c_u.unsqueeze(-1)
-        gate_input = F.normalize(user_reph - user_repl)
-        alpha_e = torch.sigmoid(self.gate(c_u * gate_input))
-        scale = 0.5 + 0.5 * alpha_e 
+        # gate_input = F.normalize(user_reph - user_repl)
+        # alpha_e = torch.sigmoid(self.gate(c_u * gate_input))
+        gate_input = F.cosine_similarity(user_reph, user_repl, dim=-1)
+        gate_input = gate_input.unsqueeze(-1)
+        alpha_e = torch.sigmoid(self.out_proj(c_u * gate_input))
+
         # for visualize correlation
         self.alpha_e = alpha_e
         self.c_u = c_u
-        user_reph = scale * user_reph
+        user_reph = alpha_e * user_reph
 
         user_rep = torch.cat((user_repT, user_repl, user_reph), dim=1)
 
